@@ -12,6 +12,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/mem"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
@@ -19,6 +20,7 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/jhump/grpctunnel/tunnelpb"
+	"github.com/siderolabs/grpc-proxy/proxy"
 )
 
 // NewChannel creates a new pending channel that, once started, can be used
@@ -686,6 +688,32 @@ func (st *tunnelClientStream) SendMsg(m interface{}) error {
 	}
 	st.numSent++
 
+	switch t := m.(type) {
+	case proto.Message:
+		// TODO: support alternate codecs, compressors, etc
+		b, err := proto.Marshal(m.(proto.Message))
+		if err != nil {
+			return err
+		}
+		if int64(len(b)) > math.MaxUint32 {
+			return status.Errorf(codes.ResourceExhausted, "serialized message is too large: %d bytes > maximum %d bytes", len(b), math.MaxUint32)
+		}
+
+		return st.sender.send(b)
+	case proxy.Frame:
+		cod := proxy.Codec()
+		// TODO: support alternate codecs, compressors, etc
+		b, err := cod.Marshal(t)
+		if err != nil {
+			return err
+		}
+		if int64(len(b)) > math.MaxUint32 {
+			return status.Errorf(codes.ResourceExhausted, "serialized message is too large: %d bytes > maximum %d bytes", len(b), math.MaxUint32)
+		}
+
+		return st.sender.send(b.Materialize())
+	}
+
 	// TODO: support alternate codecs, compressors, etc
 	b, err := proto.Marshal(m.(proto.Message))
 	if err != nil {
@@ -706,6 +734,16 @@ func (st *tunnelClientStream) RecvMsg(m interface{}) error {
 		}
 		return err
 	}
+
+	switch m.(type) {
+	case proto.Message:
+		return proto.Unmarshal(data, m.(proto.Message))
+	case proxy.Frame:
+		buffer := mem.NewBuffer(&data, mem.DefaultBufferPool())
+		cod := proxy.Codec()
+		return cod.Unmarshal(mem.BufferSlice{buffer}, m)
+	}
+
 	// TODO: support alternate codecs, compressors, etc
 	return proto.Unmarshal(data, m.(proto.Message))
 }
