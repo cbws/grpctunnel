@@ -74,6 +74,11 @@ type TunnelServiceHandlerOptions struct {
 	// If true, flow control will be disabled, even when the network client
 	// supports flow control.
 	DisableFlowControl bool
+
+	// The flow control window this side announces for each stream of a tunnel:
+	// how much the peer may send on a stream before this side has read it.
+	// Zero keeps the default of 64 KiB. See WithInitialWindowSize.
+	InitialWindowSize uint32
 }
 
 // NewTunnelServiceHandler creates a new TunnelServiceHandler. The options are
@@ -94,6 +99,7 @@ func NewTunnelServiceHandler(options TunnelServiceHandlerOptions) *TunnelService
 		reverseByKey:              map[interface{}]*reverseChannels{},
 		tunnelOpts: tunnelOpts{
 			disableFlowControl: options.DisableFlowControl,
+			initialWindowSize:  options.InitialWindowSize,
 		},
 	}
 }

@@ -60,7 +60,7 @@ func (s *tunnelServer) serve(tunnelMetadata metadata.MD) error {
 				StreamId: -1,
 				Frame: &tunnelpb.ServerToClient_Settings{
 					Settings: &tunnelpb.Settings{
-						InitialWindowSize:          initialWindowSize,
+						InitialWindowSize:          s.tunnelOpts.windowSize(),
 						SupportedProtocolRevisions: s.tunnelOpts.supportedRevisions(),
 					},
 				},
@@ -226,7 +226,7 @@ func (s *tunnelServer) createStream(ctx context.Context, streamID int64, frame *
 					},
 				})
 			},
-			initialWindowSize,
+			s.tunnelOpts.windowSize(),
 		)
 	}
 

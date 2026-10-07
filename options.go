@@ -25,8 +25,33 @@ func WithDisableFlowControl() TunnelOption {
 	})
 }
 
+// WithInitialWindowSize returns an option that sets the flow control window
+// this side of the tunnel announces for each stream: how much the peer may
+// send on a stream before this side has read it. A stream moves at most one
+// window per round trip of the tunnel, so a larger window lets a stream go
+// faster over a tunnel with a longer round trip, at the cost of buffering up to
+// that much per stream. Zero keeps the default of 64 KiB.
+//
+// Each side announces its own window and the peer honours it, so the two
+// sides of a tunnel need not agree, and a peer that does not set this keeps
+// the default.
+func WithInitialWindowSize(size uint32) TunnelOption {
+	return tunnelOptFunc(func(opts *tunnelOpts) {
+		opts.initialWindowSize = size
+	})
+}
+
 type tunnelOpts struct {
 	disableFlowControl bool
+	initialWindowSize  uint32
+}
+
+// windowSize is the flow control window this side announces for each stream.
+func (t *tunnelOpts) windowSize() uint32 {
+	if t == nil || t.initialWindowSize == 0 {
+		return initialWindowSize
+	}
+	return t.initialWindowSize
 }
 
 func (t *tunnelOpts) supportedRevisions() []tunnelpb.ProtocolRevision {

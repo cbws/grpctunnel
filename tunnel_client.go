@@ -307,7 +307,7 @@ func (c *tunnelChannel) newStream(ctx context.Context, clientStreams, serverStre
 				MethodName:        methodName,
 				RequestHeaders:    toProto(md),
 				ProtocolRevision:  c.useRevision,
-				InitialWindowSize: initialWindowSize,
+				InitialWindowSize: c.tunnelOpts.windowSize(),
 			},
 		},
 	})
@@ -454,7 +454,7 @@ func (c *tunnelChannel) allocateStream(ctx context.Context, clientStreams, serve
 					},
 				})
 			},
-			initialWindowSize,
+			c.tunnelOpts.windowSize(),
 		)
 	}
 
